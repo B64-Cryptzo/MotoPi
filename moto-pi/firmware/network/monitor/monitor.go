@@ -71,6 +71,7 @@ func getInterfaceMode(iface string) (string, error) {
 }
 
 func setInterfaceModeManaged(iface string) error {
+	//
 	for i := 0; i < 3; i++ {
 		err := exec.Command("ip", "link", "set", iface, "down").Run()
 		if err != nil {
