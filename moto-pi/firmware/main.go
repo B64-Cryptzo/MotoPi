@@ -2,21 +2,26 @@ package main
 
 import (
 	"fmt"
-	"firmware/hal/gps"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"firmware/hal/rfid"
 )
 
 func main() {
-	g, err := gps.NewGPS("/dev/ttyAMA0", 9600)
-	if err != nil {
+	scanner := &rfid.RFIDScanner{}
+	if err := scanner.Init(); err != nil {
 		panic(err)
 	}
-	defer g.Close()
+	defer scanner.Close()
 
-	for {
-		data, _ := g.Read()
-		if data != nil {
-			fmt.Printf("%+v\n", data)
-		}
-	}
+	fmt.Println("RFID scanner running. Press Ctrl+C to stop.")
+
+	// Wait for Ctrl+C
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+
+	fmt.Println("Stopping scanner...")
 }
-

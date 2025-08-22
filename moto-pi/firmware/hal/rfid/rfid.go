@@ -1,0 +1,154 @@
+package rfid
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os/exec"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	"firmware/hal"
+)
+
+// Configuration constants
+const (
+	PM3Client      = "/home/paniq/proxmark3/client/proxmark3"
+	PM3Port        = "/dev/ttyACM0"
+	TargetString   = "enzogenovese.com"
+	ScanInterval   = 500 * time.Millisecond
+	SnippetPadding = 10
+)
+
+// RFIDScanner implements hal.Device
+type RFIDScanner struct {
+	cancelFunc context.CancelFunc
+	wg         sync.WaitGroup
+	running    bool
+	lastUID    string
+}
+
+// Ensure RFIDScanner implements hal.Device
+var _ hal.Device = (*RFIDScanner)(nil)
+
+// Init starts the scanning routine
+func (r *RFIDScanner) Init() error {
+	if r.running {
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	r.cancelFunc = cancel
+	r.running = true
+
+	r.wg.Add(1)
+	go func() {
+		defer r.wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				r.scanOnce()
+				time.Sleep(ScanInterval)
+			}
+		}
+	}()
+
+	return nil
+}
+
+// Close stops the scanning routine
+func (r *RFIDScanner) Close() error {
+	if !r.running {
+		return nil
+	}
+	r.cancelFunc()
+	r.wg.Wait()
+	r.running = false
+	return nil
+}
+
+// Info returns the scanner status
+func (r *RFIDScanner) Info() string {
+	if r.running {
+		return "RFID scanner running"
+	}
+	return "RFID scanner stopped"
+}
+
+// scanOnce performs a single UID/memory check
+func (r *RFIDScanner) scanOnce() {
+	uid := getTagUID()
+	if uid != "" && uid != r.lastUID {
+		r.lastUID = uid
+		mem := readTagMemory()
+		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
+		if snippet != nil {
+			fmt.Printf("\nTarget tag detected! UID: %s\n", uid)
+			fmt.Println("Relevant memory snippet:", string(snippet))
+			r.lastUID = "" // reset to detect the same tag again
+		}
+	} else if uid == "" {
+		r.lastUID = ""
+	}
+}
+
+// ---------------- Helper Functions ----------------
+func getTagUID() string {
+	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 info")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return ""
+	}
+	re := regexp.MustCompile(`UID\.{3,}\s*([0-9A-F ]+)`)
+	match := re.FindStringSubmatch(out.String())
+	if match != nil {
+		return strings.ReplaceAll(match[1], " ", "")
+	}
+	return ""
+}
+
+func readTagMemory() []byte {
+	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 dump")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
+		return nil
+	}
+	re := regexp.MustCompile(`([0-9A-Fa-f]{2})`)
+	matches := re.FindAllString(out.String(), -1)
+	memory := make([]byte, len(matches))
+	for i, b := range matches {
+		fmt.Sscanf(b, "%02X", &memory[i])
+	}
+	return memory
+}
+
+func extractASCIISnippet(memory []byte, target []byte, padding int) []byte {
+	idx := bytes.Index(memory, target)
+	if idx == -1 {
+		return nil
+	}
+	start := idx - padding
+	if start < 0 {
+		start = 0
+	}
+	end := idx + len(target) + padding
+	if end > len(memory) {
+		end = len(memory)
+	}
+	snippet := memory[start:end]
+	printable := make([]byte, 0, len(snippet))
+	for _, b := range snippet {
+		if b >= 32 && b <= 126 {
+			printable = append(printable, b)
+		}
+	}
+	return printable
+}
