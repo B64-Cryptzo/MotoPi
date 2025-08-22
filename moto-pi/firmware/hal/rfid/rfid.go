@@ -107,11 +107,18 @@ func readTagMemory() []byte {
 	if err := cmd.Run(); err != nil {
 		return nil
 	}
-	re := regexp.MustCompile(`([0-9A-Fa-f]{2})`)
-	matches := re.FindAllString(out.String(), -1)
-	memory := make([]byte, len(matches))
-	for i, b := range matches {
-		fmt.Sscanf(b, "%02X", &memory[i])
+
+	// Extract hex bytes from the "| XX XX ..." column
+	re := regexp.MustCompile(`\|\s+([0-9A-Fa-f]{2}(?:\s[0-9A-Fa-f]{2})*)\s+\|`)
+	matches := re.FindAllStringSubmatch(out.String(), -1)
+	var memory []byte
+	for _, m := range matches {
+		bytesStr := strings.Split(m[1], " ")
+		for _, bStr := range bytesStr {
+			var b byte
+			fmt.Sscanf(bStr, "%02X", &b)
+			memory = append(memory, b)
+		}
 	}
 	return memory
 }
