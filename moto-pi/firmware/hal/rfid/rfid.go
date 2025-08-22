@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"firmware/hal"
+	"firmware/hal/gpio"
 )
 
 // Configuration constants
@@ -86,9 +87,11 @@ func (r *RFIDScanner) scanOnce() {
 		r.lastUID = uid
 		mem := readTagMemory()
 		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
-		if snippet != nil {
-			fmt.Printf("\nTarget tag detected! UID: %s\n", uid)
-			fmt.Println("Relevant memory snippet:", string(snippet))
+		if snippet != nil && strings.Contains(string(snippet), "enzogenovese.com") {
+
+			// Toggle the T flip-flop LED
+			gpio.ToggleLED()
+
 			r.lastUID = "" // reset to detect the same tag again
 		}
 	} else if uid == "" {
