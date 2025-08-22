@@ -1,9 +1,7 @@
 package rfid
 
 import (
-	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -19,19 +17,14 @@ const (
 	PM3Client      = "/home/paniq/proxmark3/client/proxmark3"
 	PM3Port        = "/dev/ttyACM0"
 	TargetString   = "enzogenovese.com"
-	ScanInterval   = 50 * time.Millisecond // realistic interval
+	ScanInterval   = 10 * time.Millisecond // realistic interval for HF 15
 	SnippetPadding = 10
 )
 
 type RFIDScanner struct {
-	cancelFunc context.CancelFunc
-	wg         sync.WaitGroup
-	running    bool
-	lastUID    string
-	pm3Cmd     *exec.Cmd
-	stdin      *bufio.Writer
-	stdout     *bufio.Reader
-	mu         sync.Mutex
+	wg      sync.WaitGroup
+	running bool
+	lastUID string
 }
 
 var _ hal.Device = (*RFIDScanner)(nil)
@@ -40,40 +33,14 @@ func (r *RFIDScanner) Init() error {
 	if r.running {
 		return nil
 	}
-
-	// Start persistent Proxmark3 session
-	cmd := exec.Command(PM3Client, PM3Port)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	r.stdin = bufio.NewWriter(stdin)
-	r.stdout = bufio.NewReader(stdout)
-	r.pm3Cmd = cmd
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	r.cancelFunc = cancel
 	r.running = true
 
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				r.scanOnce()
-				time.Sleep(ScanInterval)
-			}
+		for r.running {
+			r.scanOnce()
+			time.Sleep(ScanInterval)
 		}
 	}()
 
@@ -81,17 +48,8 @@ func (r *RFIDScanner) Init() error {
 }
 
 func (r *RFIDScanner) Close() error {
-	if !r.running {
-		return nil
-	}
-	r.cancelFunc()
-	r.wg.Wait()
 	r.running = false
-
-	if r.pm3Cmd != nil && r.pm3Cmd.Process != nil {
-		r.pm3Cmd.Process.Kill()
-	}
-
+	r.wg.Wait()
 	return nil
 }
 
@@ -104,89 +62,58 @@ func (r *RFIDScanner) Info() string {
 
 func journalLog(msg string) {
 	cmd := exec.Command("logger", "-t", "gimo-events", msg)
-	if err := cmd.Run(); err != nil {
-		fmt.Println("Failed to write to journal:", err)
-	}
+	cmd.Run()
 }
 
 func (r *RFIDScanner) scanOnce() {
-	uid := r.getTagUID()
+	uid := getTagUID()
 	if uid != "" && uid != r.lastUID {
 		r.lastUID = uid
 		journalLog("[SCANNING_RFID] UID=" + uid)
 
-		mem := r.readTagBlocks([]int{0, 1, 2, 3}) // only necessary blocks
+		// Only read first few blocks; adjust as needed
+		mem := readTagBlocks([]int{0, 1, 2, 3})
 		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
 		validRFIDTag := snippet != nil && strings.Contains(string(snippet), TargetString)
-
 		if validRFIDTag {
 			journalLog("[FOUND_VALID_RFID] UID=" + uid)
 		}
 
 		gpio.MomentarySwitch(validRFIDTag)
+
 	} else if uid == "" {
 		r.lastUID = ""
 	}
 }
 
-// ---------------- Helper Functions ----------------
-func (r *RFIDScanner) sendPM3Command(cmd string) (string, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, err := r.stdin.WriteString(cmd + "\n"); err != nil {
-		return "", err
-	}
-	r.stdin.Flush()
-
+func getTagUID() string {
+	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 uid")
 	var out bytes.Buffer
-	done := make(chan struct{})
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := r.stdout.Read(buf)
-			if err != nil {
-				break
-			}
-			if n > 0 {
-				out.Write(buf[:n])
-			}
-		}
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(200 * time.Millisecond): // timeout for HF15 response
-	}
-
-	return out.String(), nil
-}
-
-func (r *RFIDScanner) getTagUID() string {
-	out, err := r.sendPM3Command("hf 15 info")
-	if err != nil {
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil {
 		return ""
 	}
-	re := regexp.MustCompile(`UID\.{3,}\s*([0-9A-F ]+)`)
-	match := re.FindStringSubmatch(out)
+	re := regexp.MustCompile(`UID\s*:\s*([0-9A-F ]+)`)
+	match := re.FindStringSubmatch(out.String())
 	if match != nil {
 		return strings.ReplaceAll(match[1], " ", "")
 	}
 	return ""
 }
 
-func (r *RFIDScanner) readTagBlocks(blocks []int) []byte {
+func readTagBlocks(blocks []int) []byte {
 	var memory []byte
 	for _, block := range blocks {
-		cmd := fmt.Sprintf("hf 15 readblock %d", block)
-		out, err := r.sendPM3Command(cmd)
-		if err != nil {
+		cmd := exec.Command(PM3Client, PM3Port, "-c", fmt.Sprintf("hf 15 readblock %d", block))
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		if err := cmd.Run(); err != nil {
 			continue
 		}
 		re := regexp.MustCompile(`([0-9A-Fa-f]{2})`)
-		matches := re.FindAllString(out, -1)
-		for _, b := range matches {
+		for _, b := range re.FindAllString(out.String(), -1) {
 			var val byte
 			fmt.Sscanf(b, "%02X", &val)
 			memory = append(memory, val)
