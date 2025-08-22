@@ -28,7 +28,6 @@ type RFIDScanner struct {
 	cancelFunc context.CancelFunc
 	wg         sync.WaitGroup
 	running    bool
-	lastUID    string
 }
 
 // Ensure RFIDScanner implements hal.Device
@@ -90,45 +89,18 @@ func journalLog(msg string) {
 
 // scanOnce performs a single UID/memory check
 func (r *RFIDScanner) scanOnce() {
-	uid := getTagUID()
-	if uid != "" && uid != r.lastUID {
-		journalLog("[SCANNING_RFID] UID=" + uid)
-		r.lastUID = uid
-		mem := readTagMemory()
-		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
-		validRFIDTag := snippet != nil && strings.Contains(string(snippet), "enzogenovese.com")
-		if validRFIDTag {
-			journalLog("[FOUND_VALID_RFID] UID=" + uid)
-		}
-
-		gpio.MomentarySwitch(validRFIDTag)
-
-		r.lastUID = ""
-
-	} else if uid == "" {
-		r.lastUID = ""
+	mem := readTagMemory()
+	snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
+	validRFIDTag := snippet != nil && strings.Contains(string(snippet), "enzogenovese.com")
+	if validRFIDTag {
+		journalLog("[FOUND_VALID_RFID]")
 	}
-}
 
-// ---------------- Helper Functions ----------------
-func getTagUID() string {
-	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 info")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	if err := cmd.Run(); err != nil {
-		return ""
-	}
-	re := regexp.MustCompile(`UID\.{3,}\s*([0-9A-F ]+)`)
-	match := re.FindStringSubmatch(out.String())
-	if match != nil {
-		return strings.ReplaceAll(match[1], " ", "")
-	}
-	return ""
+	gpio.MomentarySwitch(validRFIDTag)
 }
 
 func readTagMemory() []byte {
-	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 dump")
+	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 rdmulti -* -b 3 --cnt 6")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
