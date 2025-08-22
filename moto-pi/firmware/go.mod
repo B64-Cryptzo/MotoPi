@@ -1,8 +1,6 @@
 module firmware
 
-go 1.22.6
-
-toolchain go1.24.2
+go 1.19
 
 require (
 	github.com/adrianmo/go-nmea v1.10.0
