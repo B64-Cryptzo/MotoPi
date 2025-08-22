@@ -19,7 +19,7 @@ const (
 	PM3Client      = "/home/paniq/proxmark3/client/proxmark3"
 	PM3Port        = "/dev/ttyACM0"
 	TargetString   = "enzogenovese.com"
-	ScanInterval   = 100 * time.Millisecond
+	ScanInterval   = 10 * time.Millisecond
 	SnippetPadding = 10
 )
 
