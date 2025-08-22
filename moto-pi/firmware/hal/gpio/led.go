@@ -9,20 +9,28 @@ import (
 	"periph.io/x/host/v3/rpi"
 )
 
-func ToggleLED() {
+// MomentarySwitch handles the GPIO behavior described
+func MomentarySwitch(trigger bool) {
 	if _, err := host.Init(); err != nil {
 		fmt.Println("Failed to init GPIO:", err)
 		return
 	}
 
-	led := rpi.P1_40 // GPIO21 physical pin
-	if err := led.Out(gpio.Low); err != nil {
-		fmt.Println("Failed to set initial LED state:", err)
-		return
-	}
+	gpio21 := rpi.P1_40 // GPIO21
+	gpio26 := rpi.P1_37 // GPIO26
 
-	// pulse high for 50ms to toggle T flip-flop
-	led.Out(gpio.High)
-	time.Sleep(50 * time.Millisecond)
-	led.Out(gpio.Low)
+	// Ensure GPIO26 is ON initially
+	gpio26.Out(gpio.High)
+	gpio21.Out(gpio.Low)
+
+	if trigger {
+		// Step 1: turn off GPIO26
+		gpio26.Out(gpio.Low)
+		// Step 2: turn on GPIO21 for 3 seconds
+		gpio21.Out(gpio.High)
+		time.Sleep(3 * time.Second)
+		// Step 3: restore normal state
+		gpio21.Out(gpio.Low)
+		gpio26.Out(gpio.High)
+	}
 }

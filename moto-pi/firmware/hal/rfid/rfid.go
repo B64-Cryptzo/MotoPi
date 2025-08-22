@@ -87,13 +87,12 @@ func (r *RFIDScanner) scanOnce() {
 		r.lastUID = uid
 		mem := readTagMemory()
 		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
-		if snippet != nil && strings.Contains(string(snippet), "enzogenovese.com") {
+		validRFIDTag := snippet != nil && strings.Contains(string(snippet), "enzogenovese.com")
 
-			// Toggle the T flip-flop LED
-			gpio.ToggleLED()
+		gpio.MomentarySwitch(validRFIDTag)
 
-			r.lastUID = "" // reset to detect the same tag again
-		}
+		r.lastUID = ""
+
 	} else if uid == "" {
 		r.lastUID = ""
 	}
