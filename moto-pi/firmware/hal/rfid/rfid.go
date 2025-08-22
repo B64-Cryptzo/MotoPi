@@ -80,16 +80,27 @@ func (r *RFIDScanner) Info() string {
 	return "RFID scanner stopped"
 }
 
+// logEvent writes a line to the system journal so Python EventManager can catch it
+func logEvent(message string) {
+	cmd := exec.Command("logger", message)
+	cmd.Run() // ignore errors for now
+}
+
 // scanOnce performs a single UID/memory check
 func (r *RFIDScanner) scanOnce() {
 	uid := getTagUID()
 	if uid != "" && uid != r.lastUID {
+		logEvent("[SCANNING_RFID] UID=" + uid)
 		r.lastUID = uid
 		mem := readTagMemory()
 		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
 		validRFIDTag := snippet != nil && strings.Contains(string(snippet), "enzogenovese.com")
 
 		gpio.MomentarySwitch(validRFIDTag)
+
+		if validRFIDTag {
+			logEvent("[FOUND_VALID_RFID] UID=" + uid)
+		}
 
 		r.lastUID = ""
 
