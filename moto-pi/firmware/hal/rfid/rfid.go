@@ -16,12 +16,11 @@ const (
 	PM3Client      = "/home/paniq/proxmark3/client/proxmark3"
 	PM3Port        = "/dev/ttyACM0"
 	TargetString   = "enzogenovese.com"
-	ScanInterval   = 100 * time.Millisecond // HF 15 needs time to respond
+	ScanInterval   = 100 * time.Millisecond // realistic interval for HF 15
 	SnippetPadding = 10
-	MemoryBlocks   = 4 // adjust number of blocks to scan
+	MemoryBlocks   = 4 // number of blocks to scan
 )
 
-// RFIDScanner actively scans memory for a target string
 type RFIDScanner struct {
 	wg      sync.WaitGroup
 	running bool
@@ -39,7 +38,7 @@ func (r *RFIDScanner) Init() error {
 	go func() {
 		defer r.wg.Done()
 		for r.running {
-			r.scanMemory()
+			r.scanOnce()
 			time.Sleep(ScanInterval)
 		}
 	}()
@@ -65,8 +64,8 @@ func journalLog(msg string) {
 	cmd.Run()
 }
 
-// scanMemory reads the blocks and looks for the target string
-func (r *RFIDScanner) scanMemory() {
+// scanOnce reads only the necessary memory blocks and checks for the target string
+func (r *RFIDScanner) scanOnce() {
 	mem := readTagBlocks(MemoryBlocks)
 	snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
 	found := snippet != nil
@@ -79,7 +78,6 @@ func (r *RFIDScanner) scanMemory() {
 // readTagBlocks reads a given number of blocks from HF 15 tag
 func readTagBlocks(numBlocks int) []byte {
 	var memory []byte
-	// read blocks in one command if supported
 	cmd := exec.Command(PM3Client, PM3Port, "-c", fmt.Sprintf("hf 15 readblock 0-%d", numBlocks-1))
 	var out bytes.Buffer
 	cmd.Stdout = &out
