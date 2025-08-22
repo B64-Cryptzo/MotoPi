@@ -112,14 +112,14 @@ func (r *RFIDScanner) scanOnce() {
 
 // ---------------- Helper Functions ----------------
 func getTagUID() string {
-	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 uid")
+	cmd := exec.Command(PM3Client, PM3Port, "-c", "hf 15 info")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Run(); err != nil {
 		return ""
 	}
-	re := regexp.MustCompile(`UID\s*:\s*([0-9A-F ]+)`)
+	re := regexp.MustCompile(`UID\.{3,}\s*([0-9A-F ]+)`)
 	match := re.FindStringSubmatch(out.String())
 	if match != nil {
 		return strings.ReplaceAll(match[1], " ", "")
