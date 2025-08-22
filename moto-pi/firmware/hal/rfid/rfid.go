@@ -140,16 +140,26 @@ func (r *RFIDScanner) sendPM3Command(cmd string) (string, error) {
 	r.stdin.Flush()
 
 	var out bytes.Buffer
-	for {
-		line, err := r.stdout.ReadString('\n')
-		if err != nil {
-			break
+	done := make(chan struct{})
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := r.stdout.Read(buf)
+			if err != nil {
+				break
+			}
+			if n > 0 {
+				out.Write(buf[:n])
+			}
 		}
-		out.WriteString(line)
-		if strings.Contains(line, "pm3>") { // prompt signals command end
-			break
-		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond): // timeout for HF15 response
 	}
+
 	return out.String(), nil
 }
 
