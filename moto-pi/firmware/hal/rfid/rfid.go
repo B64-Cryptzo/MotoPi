@@ -95,12 +95,11 @@ func (r *RFIDScanner) scanOnce() {
 		mem := readTagMemory()
 		snippet := extractASCIISnippet(mem, []byte(TargetString), SnippetPadding)
 		validRFIDTag := snippet != nil && strings.Contains(string(snippet), "enzogenovese.com")
-
-		gpio.MomentarySwitch(validRFIDTag)
-
 		if validRFIDTag {
 			logEvent("[FOUND_VALID_RFID] UID=" + uid)
 		}
+
+		gpio.MomentarySwitch(validRFIDTag)
 
 		r.lastUID = ""
 
