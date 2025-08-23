@@ -101,7 +101,7 @@ func (g *GPS) Init() error {
 					g.data.Satellites = int(m.NumSatellites)
 					g.data.ValidFix = m.FixQuality > nmea.Invalid
 				case nmea.RMC:
-					g.data.Time = m.Time.String()
+					g.data.Time = m.Time.String() 
 					g.data.Latitude = m.Latitude
 					g.data.Longitude = m.Longitude
 					g.data.SpeedKph = m.Speed * 1.852
