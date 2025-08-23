@@ -2,8 +2,11 @@ package API
 
 import (
 	"encoding/json"
-	"github.com/julienschmidt/httprouter"
 	"net/http"
+
+	"github.com/B64-Cryptzo/MotoPi/backend/Firmware/hal/gps"
+	"github.com/B64-Cryptzo/MotoPi/backend/Firmware/hal/rfid"
+	"github.com/julienschmidt/httprouter"
 )
 
 // HALInterfaceHandler struct to hold interfaces for HAL handling
@@ -29,12 +32,15 @@ func (s *StubHALService) GetStatus() map[string]interface{} {
 }
 
 // LiveHALService will hit the real PI firmware
-type LiveHALService struct{}
+type LiveHALService struct {
+	RFIDScanner *rfid.RFIDScanner
+	GPS         *gps.GPS
+}
 
 func (s *LiveHALService) GetStatus() map[string]interface{} {
-	// TODO: implement calls to the actual HAL/firmware
 	return map[string]interface{}{
-		"status": "offline",
+		"Proxmark3 Reader": s.RFIDScanner.Info(),
+		"GPS Module":       s.GPS.Info(),
 	}
 }
 

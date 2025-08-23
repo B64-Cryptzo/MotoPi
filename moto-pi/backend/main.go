@@ -1,10 +1,13 @@
 package main
 
 import (
-	"github.com/B64-Cryptzo/MotoPi/backend/API"
-	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
+
+	"github.com/B64-Cryptzo/MotoPi/backend/API"
+	"github.com/B64-Cryptzo/MotoPi/backend/Firmware/hal/gps"
+	"github.com/B64-Cryptzo/MotoPi/backend/Firmware/hal/rfid"
+	"github.com/julienschmidt/httprouter"
 )
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -27,9 +30,22 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 func main() {
 
+	scanner := &rfid.RFIDScanner{}
+	if err := scanner.Init(); err != nil {
+		panic(err)
+	}
+
+	gps := gps.NewGPS("/dev/ttyUSB0", 9600)
+	if err := gps.Init(); err != nil {
+		panic(err)
+	}
+
+	defer gps.Close()
+	defer scanner.Close()
+
 	router := httprouter.New()
 
-	_ = API.NewHALInterfaceHandler(&API.StubHALService{}, router)
+	_ = API.NewHALInterfaceHandler(&API.LiveHALService{RFIDScanner: scanner, GPS: gps}, router)
 	_ = API.NewNetworkInterfaceHandler(&API.StubNetworkService{}, router)
 	_ = API.NewMotorcycleInterfaceHandler(&API.StubMotorcycleService{}, router)
 
