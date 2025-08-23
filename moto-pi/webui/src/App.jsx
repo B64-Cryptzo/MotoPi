@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import PieMenu from "./components/PieMenu";
 import StatusPage from "./pages/status/StatusPage";
+import MotorcyclePage from "./pages/motorcycle/MotorcyclePage";
 import "./App.css";
 
 function MenuWrapper() {
@@ -30,6 +31,7 @@ function App() {
       <Routes>
         <Route path="/" element={<MenuWrapper />} />
         <Route path="/status" element={<StatusPage />} />
+        <Route path="/motorcycle" element={<MotorcyclePage />} />
         {/* Add more pages as needed */}
       </Routes>
     </Router>

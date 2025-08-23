@@ -1,0 +1,170 @@
+/* --- Container for the whole page --- */
+.motorcycle-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    min-height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    background: #111827; /* dark background */
+    color: white;
+    font-family: "Inter", sans-serif;
+    transition: background 0.3s;
+  }
+  
+  /* --- Back button --- */
+  .back-btn {
+    background: #374151; /* dark gray button */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 2rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+  
+  .back-btn:hover {
+    background: #4b5563;
+    transform: translateY(-2px);
+  }
+  
+  /* --- Page title --- */
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  
+  /* --- Grid layout --- */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    max-width: 1200px;
+    justify-items: center;
+    padding: 0 1rem;
+    box-sizing: border-box;
+    opacity: 0;
+    animation: fadeIn 0.6s forwards;
+    animation-delay: 0.2s;
+  }
+  
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+  
+  /* --- Action cards --- */
+  .action-card {
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 150px;
+    width: 100%;
+    max-width: 320px;
+    font-size: 2rem;
+    font-weight: 600;
+    text-align: center;
+    color: white;
+  }
+  
+  /* --- Hover effect for all action cards --- */
+  .action-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+  }
+  
+  /* --- Individual action colors --- */
+  .action-reboot {
+    background: #7f1d1d; /* deep red */
+  }
+  .action-reboot:hover {
+    background: #991b1b;
+  }
+  
+  .action-unlock {
+    background: #1e3a8a; /* deep blue */
+  }
+  .action-unlock:hover {
+    background: #1d4ed8;
+  }
+  
+  .action-start {
+    background: #14532d; /* deep green */
+  }
+  .action-start:hover {
+    background: #15803d;
+  }
+  
+  /* --- Modal overlay --- */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+  }
+  
+  /* --- Modal content --- */
+  .modal-content {
+    background: #1f2937;
+    padding: 2rem;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    animation: fadeInScale 0.25s ease-out forwards;
+  }
+  
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  /* --- Status messages --- */
+  .status-online {
+    color: #22c55e; /* green */
+    font-weight: 600;
+  }
+  
+  .status-offline {
+    color: #ef4444; /* red */
+    font-weight: 600;
+  }
+  
+  /* --- Modal close button --- */
+  .modal-close-btn {
+    margin-top: 1rem;
+    background: #374151;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  
+  .modal-close-btn:hover {
+    background: #4b5563;
+  }
+  
