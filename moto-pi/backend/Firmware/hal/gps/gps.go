@@ -92,17 +92,12 @@ func (g *GPS) Init() error {
 				}
 
 				line := scanner.Text()
-				fmt.Println("RAW GPS:", line)
-
 				var msg nmea.Sentence
 				if len(line) > 0 && line[0] == '$' {
-					fmt.Println("RAW NMEA:", line)
 					msg, err = nmea.Parse(line)
 					if err != nil {
-						fmt.Println("parse error:", err)
 						continue
 					}
-					fmt.Printf("Parsed: %+v\n", msg)
 				}
 
 				g.mu.Lock()
