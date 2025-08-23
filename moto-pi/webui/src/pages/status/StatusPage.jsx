@@ -26,9 +26,9 @@ export default function StatusPage() {
       <h1 className="page-title">System Status</h1>
 
       <div className="status-grid">
-        <StatusCard title="I/O" onClick={() => openModal("I/O", "http://localhost:8080/v1/api/hal/status")} />
-        <StatusCard title="Network" onClick={() => openModal("Network", "http://localhost:8080/v1/api/network/status")} />
-        <StatusCard title="Motorcycle" onClick={() => openModal("Motorcycle", "http://localhost:8080/v1/api/motorcycle/status")} />
+        <StatusCard title="I/O" onClick={() => openModal("I/O", "http://10.10.10.1:8080/v1/api/hal/status")} />
+        <StatusCard title="Network" onClick={() => openModal("Network", "http://10.10.10.1:8080/v1/api/network/status")} />
+        <StatusCard title="Motorcycle" onClick={() => openModal("Motorcycle", "http://10.10.10.1:8080/v1/api/motorcycle/status")} />
       </div>
 
       {modalData && (
