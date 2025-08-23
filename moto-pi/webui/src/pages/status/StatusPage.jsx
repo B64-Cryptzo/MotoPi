@@ -42,7 +42,7 @@ export default function StatusPage() {
                 {Object.entries(modalData.statusMap).map(([device, status]) => (
                   <li key={device} className="status-detail-item">
                     <span className="device-name">{device}</span>
-                    <span className={status === "online" ? "status-online" : "status-offline"}>
+                    <span className={status !== "offline" ? "status-online" : "status-offline"}>
                       {status.toUpperCase()}
                     </span>
                   </li>
