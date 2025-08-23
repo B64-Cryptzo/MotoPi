@@ -101,7 +101,7 @@ func (g *GPS) Init() error {
 					g.data.Satellites = int(m.NumSatellites)
 					g.data.ValidFix = m.FixQuality > nmea.Invalid
 				case nmea.RMC:
-					g.data.Time = m.Time.String() 
+					g.data.Time = m.Time.String()
 					g.data.Latitude = m.Latitude
 					g.data.Longitude = m.Longitude
 					g.data.SpeedKph = m.Speed * 1.852
@@ -120,19 +120,19 @@ func (g *GPS) Init() error {
 }
 
 // Read returns the latest GPS data as a map
-func (g *GPS) Read() (map[string]any, error) {
+func (g *GPS) Read() (GPSData, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
-	return map[string]any{
-		"time":       g.data.Time,
-		"latitude":   g.data.Latitude,
-		"longitude":  g.data.Longitude,
-		"altitude":   g.data.Altitude,
-		"satellites": g.data.Satellites,
-		"speed_kph":  g.data.SpeedKph,
-		"track_deg":  g.data.TrackAngle,
-		"valid_fix":  g.data.ValidFix,
+	return GPSData{
+		Time:       g.data.Time,
+		Latitude:   g.data.Latitude,
+		Longitude:  g.data.Longitude,
+		Altitude:   g.data.Altitude,
+		Satellites: g.data.Satellites,
+		SpeedKph:   g.data.SpeedKph,
+		TrackAngle: g.data.TrackAngle,
+		ValidFix:   g.data.ValidFix,
 	}, nil
 }
 

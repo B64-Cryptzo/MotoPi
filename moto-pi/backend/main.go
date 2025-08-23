@@ -40,6 +40,8 @@ func main() {
 		panic(err)
 	}
 
+	gps.Read()
+
 	defer gps.Close()
 	defer scanner.Close()
 
