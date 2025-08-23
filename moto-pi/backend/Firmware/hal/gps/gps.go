@@ -66,7 +66,17 @@ func (g *GPS) Init() error {
 		defer func() { g.running = false }() // reset when goroutine exits
 
 		scanner := bufio.NewScanner(g.port)
-		scanner.Split(bufio.ScanLines)
+		scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+			for i := 0; i < len(data); i++ {
+				if data[i] == '\n' {
+					return i + 1, data[:i], nil
+				}
+			}
+			if atEOF && len(data) > 0 {
+				return len(data), data, nil
+			}
+			return 0, nil, nil
+		})
 
 		for {
 			select {
@@ -82,13 +92,17 @@ func (g *GPS) Init() error {
 				}
 
 				line := scanner.Text()
-				if len(line) == 0 || line[0] != '$' {
-					continue
-				}
+				fmt.Println("RAW GPS:", line)
 
-				msg, err := nmea.Parse(line)
-				if err != nil {
-					continue
+				var msg nmea.Sentence
+				if len(line) > 0 && line[0] == '$' {
+					fmt.Println("RAW NMEA:", line)
+					msg, err = nmea.Parse(line)
+					if err != nil {
+						fmt.Println("parse error:", err)
+						continue
+					}
+					fmt.Printf("Parsed: %+v\n", msg)
 				}
 
 				g.mu.Lock()
