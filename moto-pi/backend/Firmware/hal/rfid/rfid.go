@@ -134,12 +134,23 @@ func readTagMemory() ([]byte, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	output := out.String()
+
+	// If proxmark3 runs but no tag is found, treat as "no data" not an error
+	if err != nil {
+		// If the error is only because no tag was detected, suppress it
+		if strings.Contains(output, "no tag") ||
+			strings.Contains(output, "No valid") ||
+			strings.TrimSpace(output) == "" {
+			return nil, nil
+		}
+		// Otherwise, it's a real error
 		return nil, fmt.Errorf("failed to run PM3 command: %w", err)
 	}
 
 	re := regexp.MustCompile(`\|\s+([0-9A-Fa-f]{2}(?:\s[0-9A-Fa-f]{2})*)\s+\|`)
-	matches := re.FindAllStringSubmatch(out.String(), -1)
+	matches := re.FindAllStringSubmatch(output, -1)
 	if matches == nil {
 		return nil, nil
 	}
@@ -150,6 +161,7 @@ func readTagMemory() ([]byte, error) {
 		for _, bStr := range bytesStr {
 			var b byte
 			if _, err := fmt.Sscanf(bStr, "%02X", &b); err != nil {
+				// Ignore parse errors gracefully
 				return nil, nil
 			}
 			memory = append(memory, b)

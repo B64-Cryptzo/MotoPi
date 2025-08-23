@@ -22,12 +22,13 @@ type GPSData struct {
 	ValidFix   bool
 }
 
-// GPS implements hal.Sensor interface
+// GPS implements a background-reading GPS receiver
 type GPS struct {
 	port       serial.Port
 	portName   string
 	baudRate   int
 	data       GPSData
+	mu         sync.RWMutex
 	running    bool
 	cancelFunc func()
 	wg         sync.WaitGroup
@@ -51,7 +52,6 @@ func (g *GPS) Init() error {
 	port, err := serial.Open(g.portName, mode)
 	if err != nil {
 		fmt.Println("Warning: failed to open GPS port:", err)
-		// Do not panic; mark as offline
 		g.running = false
 		return nil
 	}
@@ -63,6 +63,8 @@ func (g *GPS) Init() error {
 	g.wg.Add(1)
 	go func() {
 		defer g.wg.Done()
+		defer func() { g.running = false }() // reset when goroutine exits
+
 		scanner := bufio.NewScanner(g.port)
 		scanner.Split(bufio.ScanLines)
 
@@ -71,32 +73,43 @@ func (g *GPS) Init() error {
 			case <-ctxDone:
 				return
 			default:
-				if scanner.Scan() {
-					line := scanner.Text()
-					if len(line) == 0 || line[0] != '$' {
-						continue
+				if !scanner.Scan() {
+					if err := scanner.Err(); err != nil {
+						fmt.Println("GPS read error:", err)
 					}
-					msg, err := nmea.Parse(line)
-					if err != nil {
-						continue
-					}
-					switch m := msg.(type) {
-					case nmea.GGA:
-						g.data.Time = m.Time.String()
-						g.data.Latitude = m.Latitude
-						g.data.Longitude = m.Longitude
-						g.data.Altitude = m.Altitude
-						g.data.Satellites = int(m.NumSatellites)
-						g.data.ValidFix = m.FixQuality > nmea.Invalid
-					case nmea.RMC:
-						g.data.Time = m.Time.String()
-						g.data.Latitude = m.Latitude
-						g.data.Longitude = m.Longitude
-						g.data.SpeedKph = m.Speed * 1.852
-						g.data.TrackAngle = m.Course
-						g.data.ValidFix = m.Validity == "A"
-					}
+					time.Sleep(100 * time.Millisecond)
+					continue
 				}
+
+				line := scanner.Text()
+				if len(line) == 0 || line[0] != '$' {
+					continue
+				}
+
+				msg, err := nmea.Parse(line)
+				if err != nil {
+					continue
+				}
+
+				g.mu.Lock()
+				switch m := msg.(type) {
+				case nmea.GGA:
+					g.data.Time = m.Time.String()
+					g.data.Latitude = m.Latitude
+					g.data.Longitude = m.Longitude
+					g.data.Altitude = m.Altitude
+					g.data.Satellites = int(m.NumSatellites)
+					g.data.ValidFix = m.FixQuality > nmea.Invalid
+				case nmea.RMC:
+					g.data.Time = m.Time.String()
+					g.data.Latitude = m.Latitude
+					g.data.Longitude = m.Longitude
+					g.data.SpeedKph = m.Speed * 1.852
+					g.data.TrackAngle = m.Course
+					g.data.ValidFix = m.Validity == "A"
+				}
+				g.mu.Unlock()
+
 				g.running = true
 				time.Sleep(50 * time.Millisecond)
 			}
@@ -108,6 +121,9 @@ func (g *GPS) Init() error {
 
 // Read returns the latest GPS data as a map
 func (g *GPS) Read() (map[string]any, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
 	return map[string]any{
 		"time":       g.data.Time,
 		"latitude":   g.data.Latitude,
@@ -122,10 +138,13 @@ func (g *GPS) Read() (map[string]any, error) {
 
 // Info returns online/offline status
 func (g *GPS) Info() string {
-	if !g.running && !g.data.ValidFix {
+	if !g.running {
 		return "offline"
 	}
-	return "online"
+	if g.data.ValidFix {
+		return "online (fix)"
+	}
+	return "online (no fix)"
 }
 
 // Close stops background reading and closes serial port

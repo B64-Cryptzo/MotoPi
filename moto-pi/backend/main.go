@@ -35,7 +35,7 @@ func main() {
 		panic(err)
 	}
 
-	gps := gps.NewGPS("/dev/ttyUSB0", 9600)
+	gps := gps.NewGPS("/dev/ttyUSB0", 115200)
 	if err := gps.Init(); err != nil {
 		panic(err)
 	}
